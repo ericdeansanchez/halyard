@@ -14,7 +14,7 @@
 ***I dont think this will work until the repo is public***
 
 ```bash
-$ bash -e "$(curl -fsSL https://raw.githubusercontent.com/parkerduckworth/halyard/master/install)"
+$ /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/parkerduckworth/halyard/master/install)"
 ```
 
 ## Usage
