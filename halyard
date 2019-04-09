@@ -66,11 +66,15 @@ run() {
         fi
     done
 
+    ORIGIN=$(pwd)
+    cd $CONTAINER_PATH
+
     # This is where the magic happens
     docker run -ti -v $PWD:/test halyard:0.1 bash -c \
         "cd /test/; $COMPILER -o memtest ${TARGET[*]} && valgrind --leak-check=full ./memtest";
 
     rm memtest
+    cd $ORIGIN
 }
 
 peek() {
