@@ -19,7 +19,7 @@ copy_files() {
 }
 
 load() {
-    cat $HALYARD_PATH/logo
+    cat $HALYARD_PATH/images/logo
 
     # Initially we are looking at all args
     TARGET="$@"
@@ -34,19 +34,12 @@ load() {
     fi
 
     if [ -d $ARG ] ; then
-        # Store so we can return here
-        ORIGIN=$(pwd)
-        cd $ARG
         echo "Preparing contents of ${PWD##*/}..."
         # Since provided target is a dir, switch target to its contents
-        TARGET=$(pwd)/*
+        TARGET=$ARG/*
     fi
 
     copy_files "${OPT}" "${TARGET}"
-
-    if [ -z "$ORIGIN" ] ; then
-        cd $ORIGIN
-    fi
 }
 
 run() {
@@ -59,13 +52,9 @@ run() {
             done
         fi
 
-    # Store so we can return here
-    ORIGIN=$(pwd);
-    cd $CONTAINER_PATH;
-
     TARGET=() # Container for source files
 
-    for FILE in $(pwd)/* ; do
+    for FILE in $CONTAINER_PATH/* ; do
         EXTENSION="${FILE##*.}"
         # Set compiler based on source extension
         if [ $EXTENSION = "c" ] || [ $EXTENSION = "cpp" ] || [ $EXTENSION = "cc" ]; then
@@ -82,7 +71,6 @@ run() {
         "cd /test/; $COMPILER -o memtest ${TARGET[*]} && valgrind --leak-check=full ./memtest";
 
     rm memtest
-    cd $ORIGIN;
 }
 
 peek() {
