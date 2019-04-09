@@ -1,0 +1,110 @@
+#!/bin/bash
+
+# Will conform to Google style guide
+# https://google.github.io/styleguide/shell.xml
+
+# Probably will change to /usr/local/opt
+HALYARD_PATH="$HOME/halyard"
+CONTAINER_PATH="$HALYARD_PATH/container"
+
+copy_files() {
+    # Optional flag
+    OPT=$1
+    FILES="${@:2}"
+
+    for FILE in $FILES ; do
+        echo "Loading ${FILE##*/}"
+        cp $OPT $FILE $CONTAINER_PATH
+    done
+}
+
+load() {
+    cat $HALYARD_PATH/logo
+
+    # Initially we are looking at all args
+    TARGET="$@"
+
+    if [ $1 = "-y" ] ; then
+        ARG=$2
+        # If --yes option is provided, target begins at 2nd arg
+        TARGET="${@:2}"
+    else
+        ARG=$1
+        OPT=-i
+    fi
+
+    if [ -d $ARG ] ; then
+        # Store so we can return here
+        ORIGIN=$(pwd)
+        cd $ARG
+        echo "Preparing contents of ${PWD##*/}..."
+        # Since provided target is a dir, switch target to its contents
+        TARGET=$(pwd)/*
+    fi
+
+    copy_files "${OPT}" "${TARGET}"
+
+    if [ -z "$ORIGIN" ] ; then
+        cd $ORIGIN
+    fi
+}
+
+run() {
+    # Ensure Docker Desktop is up
+    open --background -a Docker && 
+        if ! docker system info > /dev/null 2>&1 ; then
+            echo "Staring Docker..." &&
+            while ! docker system info > /dev/null 2>&1 ; do 
+                sleep 1; 
+            done
+        fi
+
+    # Store so we can return here
+    ORIGIN=$(pwd);
+    cd $CONTAINER_PATH;
+
+    TARGET=() # Container for source files
+
+    for FILE in $(pwd)/* ; do
+        EXTENSION="${FILE##*.}"
+        # Set compiler based on source extension
+        if [ $EXTENSION = "c" ] || [ $EXTENSION = "cpp" ] || [ $EXTENSION = "cc" ]; then
+            case $EXTENSION in
+                "c")        COMPILER="gcc" ;;
+                "cpp"|"cc") COMPILER="g++" ;;
+            esac
+            TARGET+=("${FILE##*/}")
+        fi
+    done
+
+    # This is where the magic happens
+    docker run -ti -v $PWD:/test halyard:0.1 bash -c \
+        "cd /test/; $COMPILER -o memtest ${TARGET[*]} && valgrind --leak-check=full ./memtest";
+
+    rm memtest
+    cd $ORIGIN;
+}
+
+peek() {
+    for FILE in $CONTAINER_PATH/* ; do
+        if [ ${FILE##*/} != "Dockerfile" ] ; then
+            echo "${FILE##*/}"
+        fi
+    done
+}
+
+clean() {
+    for FILE in $CONTAINER_PATH/* ; do
+        if [ ${FILE##*/} != "Dockerfile" ] ; then
+            echo "Removing ${FILE##*/}"
+            rm $FILE
+        fi
+    done
+}
+
+case "$1" in 
+    "load")  load "${@:2}" ;;
+    "run")   run  "${@:2}" ;;
+    "peek")  peek  ;;
+    "clean") clean ;;
+esac

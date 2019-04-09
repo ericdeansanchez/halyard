@@ -1,0 +1,14 @@
+#!/bin/bash
+
+origin=$(pwd)
+
+cd $HOME && git clone https://github.com/parkerduckworth/halyard && cd halyard
+
+cp halyard /usr/local/bin && chmod +x /usr/local/bin/halyard
+
+# Locks Dockerfile
+chflags uchg container/Dockerfile
+
+docker build -t halyard:0.1 ./container
+
+cd $origin
