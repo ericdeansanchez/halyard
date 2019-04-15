@@ -2,13 +2,42 @@
 
 origin=$(pwd)
 
-cd $HOME && git clone https://github.com/parkerduckworth/halyard && cd halyard
+readonly PATH_PREFIX="/usr/local"
 
-cp halyard /usr/local/bin && chmod +x /usr/local/bin/halyard
+# Permission denied to write here
+if ! mkdir -p "$PATH_PREFIX"/{bin,libexec}; then
+    exit 1
+fi
 
-# Locks Dockerfile
-chflags uchg container/Dockerfile
+cd $HOME
+mkdir -m 0777 {.halyard,.halyard/container,.halyard/images}
 
-docker build -t halyard:0.1 ./container
+if ! git clone https://github.com/parkerduckworth/halyard > /dev/null 2>&1; then
+    echo "Directory named halyard already exists. You must overwrite to continue"
+    read -p "Would you like to overwrite? " input
+    if [[ $input = 'y' ]]; then
+        rm -R ./halyard
+        git clone https://github.com/parkerduckworth/halyard
+    else 
+        echo "Shutting down installation..."
+        exit 0
+    fi
+fi
+
+cd ./halyard
+
+readonly CLONE_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P)"
+readonly HALYARD_PATH="$HOME/.halyard"
+readonly CONTAINER_PATH="$HALYARD_PATH/container"
+
+cp -R "$CLONE_PATH"/bin/* "$PATH_PREFIX"/bin
+cp -R "$CLONE_PATH"/libexec/* "$PATH_PREFIX"/libexec
+cp -R "$CLONE_PATH"/images/* "$HALYARD_PATH"/images
+cp "$CLONE_PATH"/container/Dockerfile "$CONTAINER_PATH"
+
+cd .. && rm -R ./halyard
+
+docker build -t halyard:0.1 "$CONTAINER_PATH"
+echo "Installed Halyard to $PATH_PREFIX/bin/halyard"
 
 cd $origin

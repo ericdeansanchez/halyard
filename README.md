@@ -11,11 +11,11 @@
 
 ## Install
 
-***I dont think this will work until the repo is public***
-
 ```bash
 $ /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/parkerduckworth/halyard/master/install)"
 ```
+- If you do not have permission to write to /usr/local/, you may need to run with sudo
+- Ensure /usr/local/bin is included in $PATH
 
 ## Usage
 
