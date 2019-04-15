@@ -1,0 +1,19 @@
+#!/bin/bash
+
+read -p "Uninstalling Halyard. Proceed? (y/n [n]) " input
+if [[ $input != "y" ]]; then
+    exit 0
+fi
+
+echo "Removing Docker image..."
+docker rmi halyard:0.1 2> /dev/null
+
+readonly PATH_PREFIX="/usr/local"
+readonly HALYARD_PATH="$HOME/.halyard"
+
+echo "Removing related files..."
+rm -vR "$HALYARD_PATH"
+rm -v  "$PATH_PREFIX"/bin/halyard
+rm -v  "$PATH_PREFIX"/libexec/halyard.sh
+
+echo "Successfully uninstalled Halyard"

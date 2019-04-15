@@ -9,13 +9,20 @@
 
 
 
-## Install
+## (Un)Installation
 
+### Install
 ```bash
 $ /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/parkerduckworth/halyard/master/install)"
 ```
-- If you do not have permission to write to /usr/local/, you may need to run with sudo
-- Ensure /usr/local/bin is included in $PATH
+- If you do not have permission to write to `/usr/local/`, you may need to run with `sudo`
+- Ensure /usr/local/bin is included in `$PATH`
+
+### Uninstall
+```bash
+$ /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/parkerduckworth/halyard/master/uninstall)"
+```
+- Similarly, you may need to run with `sudo`
 
 ## Usage
 

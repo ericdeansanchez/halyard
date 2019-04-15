@@ -76,7 +76,7 @@ run() {
   pushd $CONTAINER_PATH > /dev/null 2>&1
 
   # This is where the magic happens
-  docker run -ti -v $PWD:/test halyard:0.1 bash -c \
+  docker run --rm -ti -v $PWD:/test halyard:0.1 bash -c \
     "cd /test/; $compiler -o memcheck ${target[*]} && valgrind --leak-check=full ./memcheck"
 
   rm memcheck
