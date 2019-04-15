@@ -3,8 +3,7 @@
 # Will conform to Google style guide
 # https://google.github.io/styleguide/shell.xml
 
-# Probably will change to /usr/local/opt
-readonly HALYARD_PATH="$HOME/halyard"
+readonly HALYARD_PATH="$HOME/.halyard"
 readonly CONTAINER_PATH="$HALYARD_PATH/container"
 
 copy_files() {
@@ -62,7 +61,7 @@ run() {
   local extension
   local compiler
 
-  for file in $CONTAINER_PATH/*; do
+  for file in "$CONTAINER_PATH"/*; do
     extension="${file##*.}"
     # Set compiler based on source extension
     if [ $extension = "c" ] || [ $extension = "cpp" ] || [ $extension = "cc" ]; then
@@ -85,8 +84,7 @@ run() {
 }
 
 peek() {
-  local loaded_files=$CONTAINER_PATH/*
-  for file in $loaded_files; do
+  for file in "$CONTAINER_PATH"/*; do
     if [ ${file##*/} != "Dockerfile" ]; then
       echo "${file##*/}"
     fi
@@ -94,8 +92,7 @@ peek() {
 }
 
 unload() {
-  local loaded_files=$CONTAINER_PATH/*
-  for file in $loaded_files; do
+  for file in "$CONTAINER_PATH"/*; do
     if [ ${file##*/} != "Dockerfile" ]; then
       echo "Unloading ${file##*/}"
       rm $file
