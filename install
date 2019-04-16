@@ -1,7 +1,7 @@
 #!/bin/bash
 
 origin=$(pwd)
-
+echo "Installing Halyard"
 readonly PATH_PREFIX="/usr/local"
 
 # Permission denied to write here
@@ -10,11 +10,10 @@ if ! mkdir -p "$PATH_PREFIX"/{bin,libexec}; then
 fi
 
 cd $HOME
-mkdir -m 0777 {.halyard,.halyard/container,.halyard/images}
 
 if ! git clone https://github.com/parkerduckworth/halyard > /dev/null 2>&1; then
     echo "Directory named halyard already exists. You must overwrite to continue"
-    read -p "Would you like to overwrite? " input
+    read -p "Would you like to overwrite? (y/n [n]) " input
     if [[ $input = 'y' ]]; then
         rm -R ./halyard
         git clone https://github.com/parkerduckworth/halyard
@@ -24,20 +23,22 @@ if ! git clone https://github.com/parkerduckworth/halyard > /dev/null 2>&1; then
     fi
 fi
 
+mkdir -m 0777 {.halyard,.halyard/container,.halyard/images}
 cd ./halyard
 
 readonly CLONE_PATH="$(cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P)"
 readonly HALYARD_PATH="$HOME/.halyard"
 readonly CONTAINER_PATH="$HALYARD_PATH/container"
 
-cp -R "$CLONE_PATH"/bin/* "$PATH_PREFIX"/bin
-cp -R "$CLONE_PATH"/libexec/* "$PATH_PREFIX"/libexec
-cp -R "$CLONE_PATH"/images/* "$HALYARD_PATH"/images
+cp -vR "$CLONE_PATH"/bin/* "$PATH_PREFIX"/bin
+cp -vR "$CLONE_PATH"/libexec/* "$PATH_PREFIX"/libexec
+cp -vR "$CLONE_PATH"/images/* "$HALYARD_PATH"/images
 cp "$CLONE_PATH"/container/Dockerfile "$CONTAINER_PATH"
 
 cd .. && rm -R ./halyard
 
+echo "Building Docker image. This can take a couple minutes."
 docker build -t halyard:0.1 "$CONTAINER_PATH"
-echo "Installed Halyard to $PATH_PREFIX/bin/halyard"
+echo "Successfully installed Halyard"
 
 cd $origin
