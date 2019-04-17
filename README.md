@@ -1,52 +1,79 @@
-                 _                     _ 
-      /\  /\__ _| |_   _  __ _ _ __ __| |
-     / /_/ / _` | | | | |/ _` | '__/ _` |
-    / __  / (_| | | |_| | (_| | | | (_| |
-    \/ /_/ \__,_|_|\__, |\__,_|_|  \__,_|
-                   |___/    
-             ____________________        
-             Virtualized Memcheck 
+<style>
+      p.header {
+            color: #A9A9A9;
+      }
+</style>
 
+<div align="center">
+      <img src="images/halyard.png" alt="Halyard">
+      <p class="header">
+          <small>A command-line tool that allows you to quickly memcheck code.</small>
+      </p>
+</div>
 
+## Getting Started
 
-## (Un)Installation
+### Preqeuisties
 
+In order to install Halyard you will need to have:
+
+* [x] [Docker](https://www.docker.com/get-started) installed and
+
+* [x] `/usr/local/bin` included in `$PATH`
+  
 ### Install
+
+To install, copy and paste this command into your terminal.
+
 ```bash
 $ /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/parkerduckworth/halyard/master/install)"
 ```
-- If you do not have permission to write to `/usr/local/`, you may need to run with `sudo`
-- Ensure /usr/local/bin is included in `$PATH`
+ _Note: If you do not have permission to write to `/usr/local/`, you may need to run with `sudo`. This will change in the future._
+
 
 ### Uninstall
+
+To uninstall, copy and paste this command into your terminal.
+
 ```bash
 $ /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/parkerduckworth/halyard/master/uninstall)"
 ```
-- Similarly, you may need to run with `sudo`
 
-## Usage
+_Similarly, you may need to run with `sudo`_
 
-1. Load files into container (I want to rename this dir to something better)
-```
-$ halyard load <file(s) or directory>
+### Usage
+
+**Load** files into container.
+
+```bash
+$ halyard [-y] load [<dir> | <file> | <file 1> ... <file n>]
 ```
 
-2. Run it
-```
+**Run** it
+
+```bash
 $ halyard run
 ```
 
-3. Make sure container is clean before testing a different set of programs
-```
-$ halyard clean
-```
+**Peek** the current contents of the container.
 
-4. You can see the current contents of the container at any time
-```
+```bash
 $ halyard peek
 ```
 
-> After editing program source files, you will need to reload the files into container. By default, you will be prompted to overwrite the preexisting files.  To select yes to all:
+**Clean** the current container before `load`ing a new set of programs.
 
+```bash
+$ halyard clean
 ```
-$ halyard load -y <file(s) / directory>
+
+**Reload** files after you have made changes. 
+_Note: this will overwrite files within the container._
+
+```bash
+$ halyard reload [<dir> | <file> | <file 1> ... <file n>]
+```
+
+### Testing
+
+### Contributing
