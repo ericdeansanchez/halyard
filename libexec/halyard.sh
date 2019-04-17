@@ -12,7 +12,11 @@ readonly HALYARD_PATH="$HOME/.halyard"
 # Path to the toplevel halyard container.
 readonly CONTAINER_PATH="$HALYARD_PATH/container"
 
+# Halyard says... something to guide users to functionality.
 readonly HALYARD_SAYS="\t\x1b[33mhalyard: \x1b[0m"
+
+# Halyard says no... to invalid operations. (i.e. calling
+# peek, unload, or run on an empty vessel/directory.
 readonly HALYARD_SAYS_NO="\t\x1b[01;31mhalyard: \x1b[0m"
 
 # Initialize a `yard` directory within the current
@@ -40,7 +44,7 @@ display() {
   local file_array=("$@")
 
   local divider=====================================
-  local divider=$divider$divideri$divider$divider
+  local divider=$divider$divider$divider$divider
 
   local header="\n%-15s %-25s %12s %10s\n"
   local format=""
@@ -79,8 +83,6 @@ load_container() {
       file_array+=("${file}")
     fi
   done
-
-  # display "${file_array[@]}"
 }
 
 # Loads this current directory's files into toplevel
@@ -90,7 +92,7 @@ load() {
   local target=()
 
   if [[ "${#args}" -eq 0 ]]; then
-    echo "Usage: halyard [-y] load [<dir> | <file> | <file 1> ... <file n>]"
+    printf "\nusage: halyard [-y] load [<dir> | <file> | <file 1> ... <file n>]\n\n"
     exit 1
   fi
 
@@ -98,9 +100,10 @@ load() {
 
   if [[ -d "${args}" ]]; then
     echo "Preparing contents of ${PWD##*/}..."
+
     # Since provided target is a dir, set target to its contents
     pushd "${args}" > /dev/null 2>&1
-    
+
     for file in "$(pwd)"/*; do
       target+=("$(get_abs_path ${file})")
     done
@@ -111,11 +114,12 @@ load() {
     done
   fi
 
-  STATUS="LOADED"
   # Copy this directory's files into container.
   load_container "${target[@]}"
-  popd > /dev/null 2>&1 || true
+  popd >/dev/null 2>&1 || true
 
+  # Everything went well, mark status as loaded.
+  STATUS="LOADED"
   display "${target[@]}"
 }
 
@@ -176,8 +180,8 @@ peek() {
   # Array to hold the file names within the vessel.
   local file_array=()
 
-  # Collect file names into `file_array` to be passed 
-  # to display. Count the number of files on this pass 
+  # Collect file names into `file_array` to be passed
+  # to display. Count the number of files on this pass
   # to avoid a call to `display` if the vessel is empty.
   for file in "$CONTAINER_PATH"/*; do
     if [ ${file##*/} != "Dockerfile" ]; then
@@ -188,6 +192,7 @@ peek() {
 
   # HACK: [fix me] - there has to be a better solution
   STATUS="LOADED"
+
   # Only display from peek if the vessel is loaded.
   if [[ "$file_count" -gt 0 ]]; then
     display "${file_array[@]}"
@@ -205,8 +210,8 @@ unload() {
   # Array to hold the file names within the vessel.
   local file_array=()
 
-  # Collect file names into `file_array` to be passed 
-  # to display. Count the number of files on this pass 
+  # Collect file names into `file_array` to be passed
+  # to display. Count the number of files on this pass
   # to avoid a call to `display` if the vessel is empty.
   for file in "$CONTAINER_PATH"/*; do
     if [ ${file##*/} != "Dockerfile" ]; then
@@ -249,13 +254,13 @@ main() {
     shift
   done
 
-case "$1" in
-  "init") init "${@:1}" ;;
-  "load") load "${@:2}" ;;
-  "run") run "${@:2}" ;;
-  "peek") peek ;;
-  "unload") unload ;;
-esac
+  case "$1" in
+    "init") init "${@:1}" ;;
+    "load") load "${@:2}" ;;
+    "run") run "${@:2}" ;;
+    "peek") peek ;;
+    "unload") unload ;;
+  esac
 }
 
 main "$@"
