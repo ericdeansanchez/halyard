@@ -1,14 +1,7 @@
-<head>
-  <style>
-    p.header {
-      color: #A9A9A9;
-    }
-  </style>
-</head>
 
 <div align="center">
       <img src="images/halyard.png" alt="Halyard">
-      <p class="header">
+      <p style="color: #A9A9A9;">
           <small>A command-line tool that allows you to quickly memcheck code.</small>
       </p>
 </div>
