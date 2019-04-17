@@ -91,8 +91,8 @@ load() {
   local args=("$@")
   local target=()
 
-  if [[ "${#args}" -eq 0 ]]; then
-    printf "\nusage: halyard [-y] load [<dir> | <file> | <file 1> ... <file n>]\n\n"
+  if [[ "${#args[@]}" -eq 0 ]]; then
+    echo "usage: halyard [-y] load [<dir> | <file> | <file 1> ... <file n>]"
     exit 1
   fi
 
@@ -102,8 +102,8 @@ load() {
     echo "Preparing contents of ${PWD##*/}..."
 
     # Since provided target is a dir, set target to its contents
-    pushd "${args}" > /dev/null 2>&1
-
+    pushd "${args}" >/dev/null 2>&1
+    
     for file in "$(pwd)"/*; do
       target+=("$(get_abs_path ${file})")
     done
@@ -244,6 +244,11 @@ OVERWRITE_PROMPT=true
 
 main() {
   set -e
+
+  if [[ "$#" -eq 0 ]]; then
+    echo "usage: halyard [-y] <command> [<args>]"
+    exit 1
+  fi
 
   # Parse optional flags
   # I expect we will have more than this
