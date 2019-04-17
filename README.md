@@ -1,8 +1,10 @@
-<style>
-      p.header {
-            color: #A9A9A9;
-      }
-</style>
+<head>
+  <style>
+    p.header {
+      color: #A9A9A9;
+    }
+  </style>
+</head>
 
 <div align="center">
       <img src="images/halyard.png" alt="Halyard">
