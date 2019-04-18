@@ -60,9 +60,10 @@ display() {
   printf "%$width.${width}s\n" "$divider"
 
   for file_name in "${file_array[@]}"; do
-    EXTENSION=$([[ "$file_name" = *.* ]] && echo ".${file_name##*.}" || echo '')
+    local trunc_file_name="${file_name##*/}"
+    EXTENSION=$([[ "$trunc_file_name" = *.* ]] && echo ".${trunc_file_name##*.}" || echo '')
     FILESIZE=$(stat -f '%z' "${file_name}")
-    printf "$format" "[${STATUS}]" "${file_name##*/}" "${EXTENSION} " "${FILESIZE}"
+    printf "$format" "[${STATUS}]" "${trunc_file_name}" "${EXTENSION} " "${FILESIZE}"
   done
   printf "\n"
 }
@@ -74,14 +75,12 @@ load_container() {
   local file_array=()
 
   for file in $files; do
-    if [[ ! -d "${file}" ]]; then
-      if [[ "${OVERWRITE_PROMPT}" = false ]]; then
-        cp ${file} ${CONTAINER_PATH}
-      else
-        cp -i ${file} ${CONTAINER_PATH}
-      fi
-      file_array+=("${file}")
+    if [[ "${OVERWRITE_PROMPT}" = false ]]; then
+      cp -R ${file} ${CONTAINER_PATH}
+    else
+      cp -iR ${file} ${CONTAINER_PATH}
     fi
+    file_array+=("${file}")
   done
 }
 
@@ -123,8 +122,8 @@ load() {
   display "${target[@]}"
 }
 
-run() {
-  # Ensure Docker Desktop is up
+# Starts Docker if not already running
+docker_start() {
   open --background -a Docker &&
     if ! docker system info >/dev/null 2>&1; then
       echo "Staring Docker..." &&
@@ -132,14 +131,42 @@ run() {
           sleep 1
         done
     fi
+}
+
+# Runs Memcheck in a Docker container instance
+# with the loaded files
+docker_run() {
+  local run_with_make="$1"
+  local files=("${@:2}")
+
+  # TODO: Redirect output, parse, and display for user
+  # Runs a full leak check and displays results
+  if [ "$run_with_make" = true ]; then
+    printf "\n${HALYARD_SAYS} makefile detected\n"
+    printf "${HALYARD_SAYS} executable path: "; read exec_path; printf "\n"
+    docker run --rm -ti -v $PWD:/test halyard:0.1 bash -c \
+      "cd /test/; 
+       echo 'making ${exec_path}... ';
+       make && valgrind --leak-check=full ./${exec_path}"
+  else
+    docker run --rm -ti -v $PWD:/test halyard:0.1 bash -c \
+      "cd /test/; 
+       $compiler -o memcheck ${files[*]} &&
+       valgrind --leak-check=full ./memcheck"
+  fi
+}
+
+run() {
+  docker_start
 
   # Array for source files.
   local target=()
   local extension
   local compiler
   local file_count=0
+  local make_detected=false
 
-  for file in "$CONTAINER_PATH"/*; do
+  for file in "${CONTAINER_PATH}"/*; do
     extension="${file##*.}"
     # Set compiler based on source extension
     if [ $extension = "c" ] || [ $extension = "cpp" ] || [ $extension = "cc" ]; then
@@ -152,6 +179,12 @@ run() {
     fi
   done
 
+  # Check for makefiles
+  if ls "${CONTAINER_PATH}" | grep -iq "makefile"; then
+    make_detected=true
+    ((file_count = file_count + 1))
+  fi
+
   # No need to `run` on zero files.
   if [[ ! "$file_count" -gt 0 ]]; then
     printf "\n${HALYARD_SAYS_NO} \`run\` called on an empty vessel...\n"
@@ -160,14 +193,7 @@ run() {
   fi
 
   pushd $CONTAINER_PATH >/dev/null 2>&1
-
-  # This is where the magic happens
-  # TODO: Redirect output, parse, and display for user
-  # Runs a full leak check and displays results
-  docker run --rm -ti -v $PWD:/test halyard:0.1 bash -c \
-    "cd /test/; $compiler -o memcheck ${target[*]} &&
-                valgrind --leak-check=full ./memcheck"
-
+  docker_run "${make_detected}" "${target[@]}"
   rm memcheck
   popd >/dev/null 2>&1
 }
@@ -234,7 +260,7 @@ unload() {
 
   for file in "$CONTAINER_PATH"/*; do
     if [ ${file##*/} != "Dockerfile" ]; then
-      rm "$file"
+      rm -R "$file"
     fi
   done
 }
