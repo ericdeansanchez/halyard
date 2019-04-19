@@ -75,13 +75,55 @@ load_container() {
   local file_array=()
 
   for file in $files; do
-    if [[ "${OVERWRITE_PROMPT}" = false ]]; then
-      cp -R ${file} ${CONTAINER_PATH}
-    else
-      cp -iR ${file} ${CONTAINER_PATH}
-    fi
+    cp -R ${file} ${CONTAINER_PATH}
     file_array+=("${file}")
   done
+}
+
+# Write the passed absolute path to container/.paths
+# if it is not already there
+save_file_paths_as_metadata() {
+  local file_path=$1
+  local path_exists=false
+
+  while read path; do
+    if [[ "${file_path}" = "${path}" ]]; then 
+      path_exists=true
+    fi
+  done < "${CONTAINER_PATH}"/.paths
+  if [[ "${path_exists}" = false ]]; then
+    echo "${file_path}" >> "${CONTAINER_PATH}"/.paths
+  fi
+}
+
+# Lists files that are currently loaded in container.
+peek() {
+  # The number of files in the vessel.
+  local file_count=0
+
+  # Array to hold the file names within the vessel.
+  local file_array=()
+
+  # Collect file names into `file_array` to be passed
+  # to display. Count the number of files on this pass
+  # to avoid a call to `display` if the vessel is empty.
+  for file in "$CONTAINER_PATH"/*; do
+    if [ ${file##*/} != "Dockerfile" ]; then
+      file_array+=("${file}")
+      ((file_count = file_count + 1))
+    fi
+  done
+
+  # HACK: [fix me] - there has to be a better solution
+  STATUS="LOADED"
+
+  # Only display from peek if the vessel is loaded.
+  if [[ "$file_count" -gt 0 ]]; then
+    display "${file_array[@]}"
+  else
+    printf "\n${HALYARD_SAYS_NO} \`peek\` called on an empty vessel...\n"
+    printf "${HALYARD_SAYS} try to \`load\` the vessel before the next \`run\`...\n\n"
+  fi
 }
 
 # Loads this current directory's files into toplevel
@@ -89,29 +131,34 @@ load_container() {
 load() {
   local args=("$@")
   local target=()
+  local target_location=()
 
   if [[ "${#args[@]}" -eq 0 ]]; then
-    echo "usage: halyard [-y] load [<dir> | <file> | <file 1> ... <file n>]"
+    echo "usage: halyard load [<dir> | <file> | <file 1> ... <file n>]"
     exit 1
   fi
 
   cat "${HALYARD_PATH}/images/logo"
 
+  # Metadata for contained files
+  touch "${CONTAINER_PATH}"/.paths
+
   if [[ -d "${args}" ]]; then
     echo "Preparing contents of ${PWD##*/}..."
-
-    # Since provided target is a dir, set target to its contents
     pushd "${args}" >/dev/null 2>&1
-    
-    for file in "$(pwd)"/*; do
-      target+=("$(get_abs_path ${file})")
-    done
+    # Since provided target is a dir, set target to its contents
+    target_location=("$(pwd)"/*)
   else
     # Otherwise target is all passed args
-    for file in "${args[@]}"; do
-      target+=("$(get_abs_path ${file})")
-    done
+    target_location=("${args[@]}")
   fi
+
+  # Accumulate the targets and save their paths for reference
+  for file in "${target_location[@]}"; do
+    local file_path="$(get_abs_path ${file})"
+    target+=("${file_path}")
+    save_file_paths_as_metadata "${file_path}"
+  done
 
   # Copy this directory's files into container.
   load_container "${target[@]}"
@@ -122,38 +169,56 @@ load() {
   display "${target[@]}"
 }
 
-# Starts Docker if not already running
-docker_start() {
-  open --background -a Docker &&
-    if ! docker system info >/dev/null 2>&1; then
-      echo "Staring Docker..." &&
-        while ! docker system info >/dev/null 2>&1; do
-          sleep 1
-        done
+# Removes files that are currently loaded in container.
+unload() {
+  # The number of files in the vessel.
+  local file_count=0
+
+  # Array to hold the file names within the vessel.
+  local file_array=()
+
+  # Collect file names into `file_array` to be passed
+  # to display. Count the number of files on this pass
+  # to avoid a call to `display` if the vessel is empty.
+  for file in "$CONTAINER_PATH"/*; do
+    if [ ${file##*/} != "Dockerfile" ]; then
+      file_array+=("${file}")
+      ((file_count = file_count + 1))
     fi
+  done
+
+  # Delete removed files' metadata
+  rm "${CONTAINER_PATH}"/.paths >/dev/null 2>&1 || true
+
+  # Only `display` from `unload` if the vessel has been unloaded.
+  if [[ "$file_count" -eq 0 ]]; then
+    printf "\n${HALYARD_SAYS_NO} \`unload\` called on an empty vessel...\n"
+    printf "${HALYARD_SAYS} vessel must be \`load[ed]\` before it can be \`unload[ed]\`...\n\n"
+    exit 1
+  fi
+
+  # Mark status as unloaded and display the files
+  # being unloaded from the vessel.
+  STATUS="UNLOADED"
+  display "${file_array[@]}"
+
+  for file in "$CONTAINER_PATH"/*; do
+    if [ ${file##*/} != "Dockerfile" ]; then
+      rm -R "$file"
+    fi
+  done
 }
 
-# Runs Memcheck in a Docker container instance
-# with the loaded files
-docker_run() {
-  local run_with_make="$1"
-  local files=("${@:2}")
+reload() {
+  local path_array=()
+  while read path; do
+    path_array+=("${path}")
+  done < "${CONTAINER_PATH}"/.paths
 
-  # TODO: Redirect output, parse, and display for user
-  # Runs a full leak check and displays results
-  if [ "$run_with_make" = true ]; then
-    printf "\n${HALYARD_SAYS} makefile detected\n"
-    printf "${HALYARD_SAYS} executable path: "; read exec_path; printf "\n"
-    docker run --rm -ti -v $PWD:/test halyard:0.1 bash -c \
-      "cd /test/; 
-       echo 'making ${exec_path}... ';
-       make && valgrind --leak-check=full ./${exec_path}"
-  else
-    docker run --rm -ti -v $PWD:/test halyard:0.1 bash -c \
-      "cd /test/; 
-       $compiler -o memcheck ${files[*]} &&
-       valgrind --leak-check=full ./memcheck"
-  fi
+  load_container "${path_array[@]}"
+
+  STATUS="LOADED"
+  display "${path_array[@]}"
 }
 
 run() {
@@ -198,89 +263,57 @@ run() {
   popd >/dev/null 2>&1
 }
 
-# Lists files that are currently loaded in container.
-peek() {
-  # The number of files in the vessel.
-  local file_count=0
-
-  # Array to hold the file names within the vessel.
-  local file_array=()
-
-  # Collect file names into `file_array` to be passed
-  # to display. Count the number of files on this pass
-  # to avoid a call to `display` if the vessel is empty.
-  for file in "$CONTAINER_PATH"/*; do
-    if [ ${file##*/} != "Dockerfile" ]; then
-      file_array+=("${file}")
-      ((file_count = file_count + 1))
+# Starts Docker if not already running
+docker_start() {
+  open --background -a Docker &&
+    if ! docker system info >/dev/null 2>&1; then
+      echo "Staring Docker..." &&
+        while ! docker system info >/dev/null 2>&1; do
+          sleep 1
+        done
     fi
-  done
+}
 
-  # HACK: [fix me] - there has to be a better solution
-  STATUS="LOADED"
+# Runs Memcheck in a Docker container instance
+# with the loaded files
+docker_run() {
+  local run_with_make="$1"
+  local files=("${@:2}")
 
-  # Only display from peek if the vessel is loaded.
-  if [[ "$file_count" -gt 0 ]]; then
-    display "${file_array[@]}"
+  # TODO: Redirect output, parse, and display for user
+  # Runs a full leak check and displays results
+  if [ "$run_with_make" = true ]; then
+    printf "\n${HALYARD_SAYS} makefile detected\n"
+    printf "${HALYARD_SAYS} executable path: "; read exec_path; printf "\n"
+    docker run --rm -ti -v $PWD:/test halyard:0.1 bash -c \
+      "cd /test/; 
+       echo 'making ${exec_path}... ';
+       make && valgrind --leak-check=full ./${exec_path}"
   else
-    printf "\n${HALYARD_SAYS_NO} \`peek\` called on an empty vessel...\n"
-    printf "${HALYARD_SAYS} try to \`load\` the vessel before the next \`run\`...\n\n"
+    docker run --rm -ti -v $PWD:/test halyard:0.1 bash -c \
+      "cd /test/; 
+       $compiler -o memcheck ${files[*]} &&
+       valgrind --leak-check=full ./memcheck"
   fi
 }
-
-# Removes files that are currently loaded in container.
-unload() {
-  # The number of files in the vessel.
-  local file_count=0
-
-  # Array to hold the file names within the vessel.
-  local file_array=()
-
-  # Collect file names into `file_array` to be passed
-  # to display. Count the number of files on this pass
-  # to avoid a call to `display` if the vessel is empty.
-  for file in "$CONTAINER_PATH"/*; do
-    if [ ${file##*/} != "Dockerfile" ]; then
-      file_array+=("${file}")
-      ((file_count = file_count + 1))
-    fi
-  done
-
-  # Only `display` from `unload` if the vessel has been unloaded.
-  if [[ "$file_count" -eq 0 ]]; then
-    printf "\n${HALYARD_SAYS_NO} \`unload\` called on an empty vessel...\n"
-    printf "${HALYARD_SAYS} vessel must be \`load[ed]\` before it can be \`unload[ed]\`...\n\n"
-    exit 1
-  fi
-
-  # Mark status as unloaded and display the files
-  # being unloaded from the vessel.
-  STATUS="UNLOADED"
-  display "${file_array[@]}"
-
-  for file in "$CONTAINER_PATH"/*; do
-    if [ ${file##*/} != "Dockerfile" ]; then
-      rm -R "$file"
-    fi
-  done
-}
-
-# Optional flags
-OVERWRITE_PROMPT=true
 
 main() {
   set -e
 
   if [[ "$#" -eq 0 ]]; then
-    echo "usage: halyard [-y] <command> [<args>]"
+    echo "usage: halyard [options] <command> [<args>]"
     exit 1
   fi
 
   # Parse optional flags
   # I expect we will have more than this
   while [[ "${1:0:1}" = "-" ]]; do
+    # Pass until flags are added.  Will we need any?
+    # I'm leaving the infra in place for now in case
+    # we decide some options will be needed.
+    :
     case "${1:1:1}" in
-      "y") OVERWRITE_PROMPT=false ;;
+      "") : ;;
     esac
     shift
   done
@@ -291,8 +324,8 @@ main() {
     "run") run "${@:2}" ;;
     "peek") peek ;;
     "unload") unload ;;
+    "reload") reload ;;
   esac
 }
 
 main "$@"
-
